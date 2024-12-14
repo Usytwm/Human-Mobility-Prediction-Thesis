@@ -7,6 +7,7 @@ debugpy==1.8.11
 decorator==5.1.1
 executing==2.1.0
 fonttools==4.55.3
+geobleu @ git+https://github.com/yahoojapan/geobleu.git@c2cc3355d27d97bf86244354808b2d3578f4a43c
 ipykernel==6.29.5
 ipython==8.30.0
 jedi==0.19.2
@@ -31,6 +32,7 @@ python-dateutil==2.9.0.post0
 pytz==2024.2
 pywin32==308
 pyzmq==26.2.0
+scipy==1.14.1
 six==1.17.0
 stack-data==0.6.3
 tornado==6.4.2

@@ -181,7 +181,6 @@ Data/
 *.gz
 *.fdb_latexmk
 *.fls
-*.py
 *.bcf
 *.xml
 *.pdf_tex
