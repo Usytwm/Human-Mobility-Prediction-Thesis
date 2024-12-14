@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import matplotlib.pyplot as plt
 from typing import List
 import numpy as np
 from multiprocessing import freeze_support
@@ -7,7 +8,6 @@ from metrics import (
     GeoBLEUMetric,
     LPPMetric,
     Metric,
-    TPPMetric,
 )
 from mobility_data_manager import DataManager
 from scipy.interpolate import CubicSpline
@@ -108,6 +108,96 @@ class NaiveWeekRepeatPredictor(Predictor):
                     print("WARNING: Hay valores NaN en las predicciones.")
 
         return predicciones
+
+    def _complete_missing_values_graphics(self, day_data):
+        """
+        Completa los valores faltantes (NaN) en los datos diarios usando interpolación cúbica
+        y regresión lineal para extrapolación, y grafica la trayectoria completada.
+
+        Args:
+            day_data: Arreglo de shape (pings_por_dia, coordenadas) con los datos de un día.
+
+        Returns:
+            Arreglo completado sin valores NaN, con interpolación cúbica y extrapolación lineal.
+        """
+        completed_data = day_data.copy()
+        for coord in range(
+            completed_data.shape[1]
+        ):  # Itera sobre cada coordenada (x e y)
+            values = completed_data[:, coord]
+            indices = np.arange(len(values))
+
+            # Detectar valores válidos y NaN
+            valid_indices = ~np.isnan(values)
+            if valid_indices.sum() == 0:  # Caso extremo: todos son NaN
+                completed_data[:, coord] = 0  # Asigna cero a todos
+                continue
+
+            valid_x = indices[valid_indices]  # Índices de valores válidos
+            valid_y = values[valid_indices]  # Valores válidos
+
+            # Interpolación cúbica
+            if len(valid_x) > 1:
+                cs = CubicSpline(valid_x, valid_y, extrapolate=False)
+                interpolated = cs(indices)
+            else:
+                interpolated = np.full_like(values, valid_y[0])
+
+            # Extrapolación lineal para los extremos
+            nan_start = np.isnan(interpolated[: valid_x[0]])
+            if nan_start.any():
+                slope_start = (
+                    (valid_y[1] - valid_y[0]) / (valid_x[1] - valid_x[0])
+                    if len(valid_x) > 1
+                    else 0
+                )
+                interpolated[: valid_x[0]] = valid_y[0] + slope_start * (
+                    indices[: valid_x[0]] - valid_x[0]
+                )
+
+            nan_end = np.isnan(interpolated[valid_x[-1] + 1 :])
+            if nan_end.any():
+                slope_end = (
+                    (valid_y[-1] - valid_y[-2]) / (valid_x[-1] - valid_x[-2])
+                    if len(valid_x) > 1
+                    else 0
+                )
+                interpolated[valid_x[-1] + 1 :] = valid_y[-1] + slope_end * (
+                    indices[valid_x[-1] + 1 :] - valid_x[-1]
+                )
+
+            # Garantizar que los valores sean mayores o iguales a cero
+            interpolated = np.maximum(interpolated, 0)
+
+            # Asignar valores interpolados
+            completed_data[:, coord] = interpolated
+
+        # Graficar la trayectoria completa en el plano (x, y)
+        plt.figure(figsize=(8, 6))
+        valid_points = ~np.isnan(day_data[:, 0]) & ~np.isnan(day_data[:, 1])
+
+        plt.plot(
+            day_data[valid_points, 0],
+            day_data[valid_points, 1],
+            "ro",
+            label="Puntos originales",
+        )
+        plt.plot(
+            completed_data[:, 0],
+            completed_data[:, 1],
+            # "-o",
+            color="blue",
+            label="Trayectoria completada",
+        )
+
+        plt.title("Movimiento del usuario en el plano (x, y)")
+        plt.xlabel("Coordenada X")
+        plt.ylabel("Coordenada Y")
+        plt.legend()
+        plt.grid()
+        plt.show()
+
+        return completed_data
 
     def _complete_missing_values(self, day_data):
         """
@@ -247,19 +337,19 @@ def main(ruta_hdf5, metrics: List[Metric], predictor: Predictor):
     # Generar predicciones
     predicciones = predictor.predict(dataset, val_dias, usuario_offset=usuario_cutoff)
 
-    # Crear trayectorias comparables
-    generated, reference = Formatter.create_comparable_trajectories(
-        predicciones, validation_set
-    )
+    # # Crear trayectorias comparables
+    # generated, reference = Formatter.create_comparable_trajectories(
+    #     predicciones, validation_set
+    # )
 
-    for metric in metrics:
-        score = metric.calculate(generated, reference)
-        print(f"{metric.__class__.__name__} score: {score:.2f}")
+    # for metric in metrics:
+    #     score = metric.calculate(generated, reference)
+    #     print(f"{metric.__class__.__name__} score: {score:.2f}")
 
 
 if __name__ == "__main__":
     freeze_support()
     ruta_hdf5 = "C:\\Brian\\Tesis\\Challenge\\cityA_groundtruthdata.csv\\cityA_groundtruthdata.hdf5"
-    metrics = [LPPMetric(), TPPMetric(), GeoBLEUMetric(), DTWMetric()]
+    metrics = [LPPMetric(), GeoBLEUMetric(), DTWMetric()]
     predictor = NaiveWeekRepeatPredictor()
     main(ruta_hdf5, metrics[2:], predictor)

@@ -100,27 +100,6 @@ class DataManager:
         with gzip.open(csv_path, "rt", encoding="ISO-8859-1") as f:
             return pd.read_csv(f, on_bad_lines="skip")
 
-    def query_data(self, user_id, day, timeslot, dataset=None):
-        """
-        Consulta las coordenadas para un usuario, día y franja horaria específica.
-
-        Parámetros:
-        ---
-        - user_id (int): ID del usuario.
-        - day (int): Día de la consulta.
-        - timeslot (int): Franja horaria de la consulta.
-        - dataset (h5py.Dataset, opcional): Dataset cargado previamente.
-
-        Retorna:
-        ---
-        - np.ndarray: Coordenadas (x, y) para el usuario en el tiempo especificado.
-        """
-        dataset = dataset or self.dataset or self.load_hdf5()
-        try:
-            return dataset[user_id, day, timeslot]
-        except IndexError:
-            raise ValueError("La consulta está fuera del rango permitido.")
-
     def _populate_dataset(self, dataset, df, autocomplete=False):
         """
         Rellena el dataset HDF5 con datos desde el DataFrame.
