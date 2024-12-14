@@ -5,15 +5,15 @@ VENV = venv
 venv:
 	python -m venv $(VENV)
 
-# Activar el entorno virtual y guardar las dependencias
+# Generar el archivo requirements.txt
 requirements: venv
 	$(VENV)\Scripts\python -m pip freeze > requirements.txt
 
-
 # Instalar dependencias desde requirements.txt
 install: venv
-	$(VENV)/Scripts/activate && pip install -r requirements.txt
+	$(VENV)\Scripts\python -m pip install -r requirements.txt
 
-# Limpiar archivos generados
+# Limpiar el entorno virtual y requirements.txt
 clean:
-	rm -rf $(VENV) requirements.txt
+	@if exist $(VENV) (rmdir /s /q $(VENV))
+	@if exist requirements.txt (del requirements.txt)
