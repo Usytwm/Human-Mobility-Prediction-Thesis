@@ -109,6 +109,75 @@ class NaiveWeekRepeatPredictor(Predictor):
 
         return predicciones
 
+    def _complete_missing_values(self, day_data):
+        """
+        Completa los valores faltantes (NaN) en los datos diarios usando interpolación cúbica
+        y regresión polinómica para extrapolación.
+
+        Args:
+            day_data: Arreglo de shape (pings_por_dia, coordenadas) con los datos de un día.
+
+        Returns:
+            Arreglo completado sin valores NaN, con interpolación cúbica y extrapolación polinómica.
+        """
+        completed_data = day_data.copy()
+        for coord in range(
+            completed_data.shape[1]
+        ):  # Itera sobre cada coordenada (x e y)
+            values = completed_data[:, coord]
+            indices = np.arange(len(values))
+
+            # Detectar valores válidos y NaN
+            valid_indices = ~np.isnan(values)
+            if valid_indices.sum() == 0:  # Caso extremo: todos son NaN
+                completed_data[:, coord] = 0  # Asigna cero a todos
+                continue
+
+            valid_x = indices[valid_indices]  # Índices de valores válidos
+            valid_y = values[valid_indices]  # Valores válidos
+
+            # Interpolación cúbica si hay suficientes puntos
+            if len(valid_x) > 1:
+                cs = CubicSpline(valid_x, valid_y, extrapolate=False)
+                interpolated = cs(indices)
+            else:
+                # Si solo hay un valor válido, rellenar todo con ese valor
+                interpolated = np.full_like(values, valid_y[0])
+
+            # Extrapolación para los extremos NaN (usando regresión lineal simple)
+            nan_start = np.isnan(interpolated[: valid_x[0]])  # NaN al inicio
+            nan_end = np.isnan(interpolated[valid_x[-1] + 1 :])  # NaN al final
+
+            # Extrapolación al inicio
+            if nan_start.any():
+                slope_start = (
+                    (valid_y[1] - valid_y[0]) / (valid_x[1] - valid_x[0])
+                    if len(valid_x) > 1
+                    else 0
+                )
+                interpolated[: valid_x[0]] = valid_y[0] + slope_start * (
+                    indices[: valid_x[0]] - valid_x[0]
+                )
+
+            # Extrapolación al final
+            if nan_end.any():
+                slope_end = (
+                    (valid_y[-1] - valid_y[-2]) / (valid_x[-1] - valid_x[-2])
+                    if len(valid_x) > 1
+                    else 0
+                )
+                interpolated[valid_x[-1] + 1 :] = valid_y[-1] + slope_end * (
+                    indices[valid_x[-1] + 1 :] - valid_x[-1]
+                )
+
+            # Garantizar que los valores sean mayores o iguales a cero
+            interpolated = np.maximum(interpolated, 0)
+
+            # Asignar los valores completados
+            completed_data[:, coord] = interpolated
+
+        return completed_data
+
     def _complete_missing_values_graphics(self, day_data):
         """
         Completa los valores faltantes (NaN) en los datos diarios usando interpolación cúbica
@@ -199,75 +268,6 @@ class NaiveWeekRepeatPredictor(Predictor):
 
         return completed_data
 
-    def _complete_missing_values(self, day_data):
-        """
-        Completa los valores faltantes (NaN) en los datos diarios usando interpolación cúbica
-        y regresión polinómica para extrapolación.
-
-        Args:
-            day_data: Arreglo de shape (pings_por_dia, coordenadas) con los datos de un día.
-
-        Returns:
-            Arreglo completado sin valores NaN, con interpolación cúbica y extrapolación polinómica.
-        """
-        completed_data = day_data.copy()
-        for coord in range(
-            completed_data.shape[1]
-        ):  # Itera sobre cada coordenada (x e y)
-            values = completed_data[:, coord]
-            indices = np.arange(len(values))
-
-            # Detectar valores válidos y NaN
-            valid_indices = ~np.isnan(values)
-            if valid_indices.sum() == 0:  # Caso extremo: todos son NaN
-                completed_data[:, coord] = 0  # Asigna cero a todos
-                continue
-
-            valid_x = indices[valid_indices]  # Índices de valores válidos
-            valid_y = values[valid_indices]  # Valores válidos
-
-            # Interpolación cúbica si hay suficientes puntos
-            if len(valid_x) > 1:
-                cs = CubicSpline(valid_x, valid_y, extrapolate=False)
-                interpolated = cs(indices)
-            else:
-                # Si solo hay un valor válido, rellenar todo con ese valor
-                interpolated = np.full_like(values, valid_y[0])
-
-            # Extrapolación para los extremos NaN (usando regresión lineal simple)
-            nan_start = np.isnan(interpolated[: valid_x[0]])  # NaN al inicio
-            nan_end = np.isnan(interpolated[valid_x[-1] + 1 :])  # NaN al final
-
-            # Extrapolación al inicio
-            if nan_start.any():
-                slope_start = (
-                    (valid_y[1] - valid_y[0]) / (valid_x[1] - valid_x[0])
-                    if len(valid_x) > 1
-                    else 0
-                )
-                interpolated[: valid_x[0]] = valid_y[0] + slope_start * (
-                    indices[: valid_x[0]] - valid_x[0]
-                )
-
-            # Extrapolación al final
-            if nan_end.any():
-                slope_end = (
-                    (valid_y[-1] - valid_y[-2]) / (valid_x[-1] - valid_x[-2])
-                    if len(valid_x) > 1
-                    else 0
-                )
-                interpolated[valid_x[-1] + 1 :] = valid_y[-1] + slope_end * (
-                    indices[valid_x[-1] + 1 :] - valid_x[-1]
-                )
-
-            # Garantizar que los valores sean mayores o iguales a cero
-            interpolated = np.maximum(interpolated, 0)
-
-            # Asignar los valores completados
-            completed_data[:, coord] = interpolated
-
-        return completed_data
-
 
 class Formatter:
     @staticmethod
@@ -337,14 +337,14 @@ def main(ruta_hdf5, metrics: List[Metric], predictor: Predictor):
     # Generar predicciones
     predicciones = predictor.predict(dataset, val_dias, usuario_offset=usuario_cutoff)
 
-    # # Crear trayectorias comparables
-    # generated, reference = Formatter.create_comparable_trajectories(
-    #     predicciones, validation_set
-    # )
+    # Crear trayectorias comparables
+    generated, reference = Formatter.create_comparable_trajectories(
+        predicciones, validation_set
+    )
 
-    # for metric in metrics:
-    #     score = metric.calculate(generated, reference)
-    #     print(f"{metric.__class__.__name__} score: {score:.2f}")
+    for metric in metrics:
+        score = metric.calculate(generated, reference)
+        print(f"{metric.__class__.__name__} score: {score:.2f}")
 
 
 if __name__ == "__main__":
