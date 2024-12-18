@@ -32,6 +32,15 @@ class LPPMetric(Metric):
         return calculate_lpp(validation, predictions)
 
 
+class MAEMetric(Metric):
+    """
+    Métrica para calcular el Error Medio Absoluto (MAE).
+    """
+
+    def calculate(self, predictions_per_user, validation_per_user):
+        return calculate_error_metrics(predictions_per_user, validation_per_user)["MAE"]
+
+
 class GeoBLEUMetric(Metric):
     """
     Métrica para calcular el puntaje GeoBLEU.
@@ -80,6 +89,41 @@ def calculate_lpp(predictions_per_user, validation_per_user):
         else 0.0
     )
     return lpp
+
+
+def calculate_error_metrics(predictions_per_user, validation_per_user):
+    """
+    Calcula métricas de error entre trayectorias predichas y reales:
+    - Error Medio Absoluto (MAE)
+    - Error Máximo
+    - Distribución de Errores
+
+    Args:
+        predictions_per_user (list of list of tuples): Trayectorias predichas [(d, t, x, y)].
+        validation_per_user (list of list of tuples): Trayectorias reales [(d, t, x, y)].
+
+    Returns:
+        dict: Métricas calculadas.
+    """
+    errors = []
+
+    for predicted_traj, actual_traj in zip(predictions_per_user, validation_per_user):
+        for predicted_point, actual_point in zip(predicted_traj, actual_traj):
+            # Ignorar puntos donde las coordenadas reales sean NaN
+            if not any(np.isnan(coord) for coord in actual_point[2:]):
+                # Calcular distancia euclidiana
+                distance = np.sqrt(
+                    (predicted_point[2] - actual_point[2]) ** 2
+                    + (predicted_point[3] - actual_point[3]) ** 2
+                )
+                errors.append(distance)
+
+    # Calcular métricas
+    mae = np.mean(errors) if errors else 0.0
+    max_error = np.max(errors) if errors else 0.0
+
+    # Retornar resultados
+    return {"MAE": mae, "Max Error": max_error, "Errors": errors}
 
 
 def calculate_geobleu_for_quadrant(predictions_per_user, validation_per_user):
