@@ -59,16 +59,18 @@ class DTWMetric(Metric):
         return calculate_dtw_for_quadrant(predictions_per_user, validation_per_user)
 
 
-def calculate_lpp(predictions_per_user, validation_per_user):
+def calculate_lpp(predictions_per_user, validation_per_user, tolerance=4.0):
     """
-    Calcula la Precisión de Predicción de Ubicación (LPP), ignorando los valores NaN.
+    Calcula la Precisión de Predicción de Ubicación (LPP), ignorando los valores NaN,
+    y permitiendo un margen de error definido por un umbral.
 
     Args:
         predictions_per_user (list of list of tuples): Lista de trayectorias generadas por cada usuario.
         validation_per_user (list of list of tuples): Lista de trayectorias reales por cada usuario.
+        tolerance (float): Margen de error en unidades de distancia para considerar una predicción correcta.
 
     Returns:
-        float: La precisión de ubicación como porcentaje de coincidencias exactas.
+        float: La precisión de ubicación como porcentaje de coincidencias dentro del margen.
     """
     correct_predictions = 0
     total_predictions = 0
@@ -77,8 +79,13 @@ def calculate_lpp(predictions_per_user, validation_per_user):
         for predicted_point, actual_point in zip(predicted_traj, actual_traj):
             # Asegurar que las coordenadas reales no sean NaN
             if not any(np.isnan(coord) for coord in actual_point[2:]):
-                # Comparar puntos completos: (d, t, x, y)
-                if predicted_point == actual_point:
+                # Calcular distancia euclidiana entre puntos predichos y reales
+                distance = np.sqrt(
+                    (predicted_point[2] - actual_point[2]) ** 2
+                    + (predicted_point[3] - actual_point[3]) ** 2
+                )
+                # Contar como correcta si la distancia está dentro del margen de tolerancia
+                if distance <= tolerance:
                     correct_predictions += 1
                 total_predictions += 1
 
