@@ -10,6 +10,8 @@ class Data(Enum):
     SMALL = 2
     LAST_3000 = 3
     LAST_1000 = 4
+    FIRST_1000 = 5
+    FIRST_3000 = 6
 
 
 def load_data(type: Data):
@@ -31,6 +33,14 @@ def load_data(type: Data):
         case Data.LAST_3000:
             df = pd.read_csv(
                 "../Data/cityA_groundtruthdata.csv/cityA_groundtruthdata_last_3000_users.csv"
+            )
+        case Data.FIRST_1000:
+            df = pd.read_csv(
+                "../Data/cityA_groundtruthdata.csv/cityA_groundtruthdata_first_1000_users.csv"
+            )
+        case Data.FIRST_3000:
+            df = pd.read_csv(
+                "../Data/cityA_groundtruthdata.csv/cityA_groundtruthdata_first_3s000_users.csv"
             )
         case _:
             df = pd.read_csv(
