@@ -40,7 +40,7 @@ def load_data(type: Data):
             )
         case Data.FIRST_3000:
             df = pd.read_csv(
-                "../Data/cityA_groundtruthdata.csv/cityA_groundtruthdata_first_3s000_users.csv"
+                "../Data/cityA_groundtruthdata.csv/cityA_groundtruthdata_first_3000_users.csv"
             )
         case _:
             df = pd.read_csv(
