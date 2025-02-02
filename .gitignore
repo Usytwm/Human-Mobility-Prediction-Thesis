@@ -184,3 +184,8 @@ Data/
 *.bcf
 *.xml
 *.pdf_tex
+
+
+docs/*
+!docs/Thesis.pdf
+
