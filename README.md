@@ -28,7 +28,7 @@ Los siguientes notebooks contienen la implementación de los modelos y experimen
 
 Puedes acceder al documento completo de la tesis en formato PDF aquí:
 
-📄 [Descargar](link_al_pdf_tesis)
+📄 [Predicción de la movilidad humana utilizando redes neuronales](./docs/Thesis.pdf)
 
 ---
 
